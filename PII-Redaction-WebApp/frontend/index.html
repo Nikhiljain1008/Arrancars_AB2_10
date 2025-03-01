@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PII Redaction App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Upload Document for PII Detection</h1>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Submit</button>
+    
+    <h2>Extracted Text:</h2>
+    <pre id="extractedText"></pre> <!-- Ensure this ID matches in JS -->
+
+    <script>
+       function uploadFile() {
+    var fileInput = document.getElementById("fileInput").files[0];
+    if (!fileInput) {
+        alert("Please select a file");
+        return;
+    }
+
+    var formData = new FormData();
+    formData.append("file", fileInput);
+
+    fetch("http://127.0.0.1:5000/upload", {
+        method: "POST",
+        body: formData
+    })
+    .then(response => response.json())  // ✅ Ensure response is JSON
+    .then(data => {
+        console.log("Extracted Text:", data.extracted_text); // Debugging
+        document.getElementById('extractedText').innerText = data.extracted_text || "No text detected."; // ✅ Fix ID
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        document.getElementById('extractedText').innerText = "Error processing the file.";
+    });
+}
+
+    </script>
+</body>
+</html>
