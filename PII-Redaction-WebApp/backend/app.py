@@ -8,6 +8,7 @@ from pdf2image import convert_from_path
 import numpy as np
 from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
+from pii_detection import detect_pii_and_redact
 
 app = Flask(__name__)
 
@@ -123,7 +124,21 @@ def upload_file():
         return jsonify({"filename": filename, "extracted_text": extracted_text})
 
     return jsonify({"error": "Invalid file type"}), 400
+@app.route('/detect_pii', methods=['POST'])
+def detect_pii_route():
+    """API Endpoint to detect PII in uploaded text."""
+    try:
+        data = request.get_json()
+        if not data or "text" not in data:
+            return jsonify({"error": "Invalid request. 'text' field is required"}), 400
 
+        text = data.get("text", "")
+        pii_level = data.get("pii_level", "critical")  # Default to 'critical'
+        pii_results = detect_pii_and_redact(text, pii_level)  # Ensure detect_pii function exists
+
+        return jsonify({"detect_pii": pii_results}), 200
+    except Exception as e:
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
