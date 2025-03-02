@@ -669,7 +669,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Set the Poppler path (update this to your Poppler bin directory)
 POPPLER_PATH = (
-    r"C:\Users\aadil\Desktop\poppler-24.08.0\Library\bin"
+    r"C:\Users\babusha kolhe\Downloads\Release-24.08.0-0\poppler-24.08.0\Library\bin"
 )
 
 # Folder to store redacted documents
