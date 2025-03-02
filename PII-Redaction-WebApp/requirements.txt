@@ -1,6 +1,0 @@
-Flask
-Tesseract
-spacy
-pdf2image
-pytesseract
-opencv-python
