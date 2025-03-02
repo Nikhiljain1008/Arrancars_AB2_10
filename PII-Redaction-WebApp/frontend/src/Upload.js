@@ -1,6 +1,131 @@
+// import React, { useState, useEffect } from 'react';
+// import axios from 'axios';
+// import { io } from 'socket.io-client';
+
+// const Upload = () => {
+//   const [file, setFile] = useState(null);
+//   const [result, setResult] = useState(null);
+//   const [error, setError] = useState(null);
+//   const [alert, setAlert] = useState(null);
+//   const [redactionLevel, setRedactionLevel] = useState('basic'); // State for redaction level
+
+//   // Connect to the WebSocket server
+//   const socket = io('http://127.0.0.1:5000');
+
+//   useEffect(() => {
+//     // Listen for real-time alerts
+//     socket.on('pii_detected', (data) => {
+//       setAlert(`PII Detected: ${JSON.stringify(data.detected_pii)}`);
+//     });
+
+//     // Clean up the socket connection
+//     return () => {
+//       socket.disconnect();
+//     };
+//   }, []);
+
+//   const handleFileChange = (e) => {
+//     setFile(e.target.files[0]);
+//   };
+
+//   const handleRedactionLevelChange = (e) => {
+//     setRedactionLevel(e.target.value); // Update redaction level state
+//   };
+
+//   const handleSubmit = async () => {
+//     if (!file) {
+//       setError("Please select a file.");
+//       return;
+//     }
+
+//     const formData = new FormData();
+//     formData.append('file', file);
+//     formData.append('redaction_level', redactionLevel); // Add redaction level to form data
+
+//     try {
+//       const response = await axios.post('http://127.0.0.1:5000/upload', formData, {
+//         headers: {
+//           'Content-Type': 'multipart/form-data',
+//         },
+//       });
+//       setResult(response.data);
+//       setError(null);
+//     } catch (error) {
+//       setError("Error uploading file. Please try again.");
+//       console.error("Error details:", error.response ? error.response.data : error.message);
+//     }
+//   };
+
+//   return (
+//     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+//       <h1>Upload Document</h1>
+//       <input type="file" onChange={handleFileChange} />
+      
+//       {/* Redaction Level Dropdown */}
+//       <div style={{ marginTop: '10px' }}>
+//         <label htmlFor="redactionLevel">Redaction Level: </label>
+//         <select
+//           id="redactionLevel"
+//           value={redactionLevel}
+//           onChange={handleRedactionLevelChange}
+//           style={{ padding: '5px', borderRadius: '5px' }}
+//         >
+//           <option value="basic">Basic</option>
+//           <option value="intermediate">Intermediate</option>
+//           <option value="critical">Critical</option>
+//         </select>
+//       </div>
+
+//       <button onClick={handleSubmit} style={{ marginTop: '10px', padding: '10px' }}>
+//         Upload
+//       </button>
+
+//       {error && <p style={{ color: 'red' }}>{error}</p>}
+//       {alert && <p style={{ color: 'blue' }}>{alert}</p>}
+
+//       {result && (
+//         <div style={{ marginTop: '20px' }}>
+//           <h2>Original Text</h2>
+//           <pre style={{ whiteSpace: 'pre-wrap', background: '#f9f9f9', padding: '10px', borderRadius: '5px' }}>
+//             {result.text}
+//           </pre>
+
+//           <h2>Redacted Text</h2>
+//           <pre style={{ whiteSpace: 'pre-wrap', background: '#f9f9f9', padding: '10px', borderRadius: '5px' }}>
+//             {result.redacted_text}
+//           </pre>
+
+//           <h2>Detected PII Details</h2>
+//           <ul style={{ listStyleType: 'none', padding: '0' }}>
+//             {Object.entries(result.detected_pii).map(([pii_type, values]) => (
+//               <li key={pii_type} style={{ marginBottom: '10px' }}>
+//                 <strong style={{ textTransform: 'capitalize' }}>{pii_type}:</strong>
+//                 <ul style={{ listStyleType: 'none', paddingLeft: '20px' }}>
+//                   {values.map((value, index) => (
+//                     <li key={index}>{value}</li>
+//                   ))}
+//                 </ul>
+//               </li>
+//             ))}
+//           </ul>
+
+//           <h2>Download Redacted Document</h2>
+//           <a href={`http://127.0.0.1:5000${result.redacted_file_url}`} download>
+//             <button style={{ marginTop: '10px', padding: '10px' }}>
+//               Download Redacted File
+//             </button>
+//           </a>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default Upload;
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import './upload.css'; // Import the CSS file for styling
 
 const Upload = () => {
   const [file, setFile] = useState(null);
@@ -57,52 +182,57 @@ const Upload = () => {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
-      <h1>Upload Document</h1>
-      <input type="file" onChange={handleFileChange} />
-      
-      {/* Redaction Level Dropdown */}
-      <div style={{ marginTop: '10px' }}>
-        <label htmlFor="redactionLevel">Redaction Level: </label>
-        <select
-          id="redactionLevel"
-          value={redactionLevel}
-          onChange={handleRedactionLevelChange}
-          style={{ padding: '5px', borderRadius: '5px' }}
-        >
-          <option value="basic">Basic</option>
-          <option value="intermediate">Intermediate</option>
-          <option value="critical">Critical</option>
-        </select>
+    <div className="upload-container">
+      <h1>Document Redaction Tool</h1>
+      <div className="upload-box">
+        <input
+          type="file"
+          id="fileInput"
+          onChange={handleFileChange}
+          className="file-input"
+        />
+        <label htmlFor="fileInput" className="file-label">
+          Choose File
+        </label>
+
+        <div className="redaction-level">
+          <label htmlFor="redactionLevel">Redaction Level: </label>
+          <select
+            id="redactionLevel"
+            value={redactionLevel}
+            onChange={handleRedactionLevelChange}
+            className="level-select"
+          >
+            <option value="basic">Basic</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+
+        <button onClick={handleSubmit} className="upload-button">
+          Upload and Redact
+        </button>
+
+        {error && <p className="error-message">{error}</p>}
+        {alert && <p className="alert-message">{alert}</p>}
       </div>
 
-      <button onClick={handleSubmit} style={{ marginTop: '10px', padding: '10px' }}>
-        Upload
-      </button>
-
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {alert && <p style={{ color: 'blue' }}>{alert}</p>}
-
       {result && (
-        <div style={{ marginTop: '20px' }}>
+        <div className="result-container">
           <h2>Original Text</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', background: '#f9f9f9', padding: '10px', borderRadius: '5px' }}>
-            {result.text}
-          </pre>
+          <pre className="text-box">{result.text}</pre>
 
           <h2>Redacted Text</h2>
-          <pre style={{ whiteSpace: 'pre-wrap', background: '#f9f9f9', padding: '10px', borderRadius: '5px' }}>
-            {result.redacted_text}
-          </pre>
+          <pre className="text-box">{result.redacted_text}</pre>
 
           <h2>Detected PII Details</h2>
-          <ul style={{ listStyleType: 'none', padding: '0' }}>
+          <ul className="pii-list">
             {Object.entries(result.detected_pii).map(([pii_type, values]) => (
-              <li key={pii_type} style={{ marginBottom: '10px' }}>
-                <strong style={{ textTransform: 'capitalize' }}>{pii_type}:</strong>
-                <ul style={{ listStyleType: 'none', paddingLeft: '20px' }}>
+              <li key={pii_type} className="pii-item">
+                <strong className="pii-type">{pii_type}:</strong>
+                <ul className="pii-values">
                   {values.map((value, index) => (
-                    <li key={index}>{value}</li>
+                    <li key={index} className="pii-value">{value}</li>
                   ))}
                 </ul>
               </li>
@@ -110,10 +240,12 @@ const Upload = () => {
           </ul>
 
           <h2>Download Redacted Document</h2>
-          <a href={`http://127.0.0.1:5000${result.redacted_file_url}`} download>
-            <button style={{ marginTop: '10px', padding: '10px' }}>
-              Download Redacted File
-            </button>
+          <a
+            href={`http://127.0.0.1:5000${result.redacted_file_url}`}
+            download
+            className="download-link"
+          >
+            <button className="download-button">Download Redacted File</button>
           </a>
         </div>
       )}

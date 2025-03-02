@@ -49,10 +49,15 @@ def redact_text(text, detected_pii):
     return text
 
 
-def mask_image(image, detected_pii):
+def mask_image(image, detected_pii, redaction_level):
     """
-    Mask sensitive information in the image.
+    Mask sensitive information in the image based on the selected redaction level.
     """
+    from utils.pii_detector import PII_LEVEL_MAPPING
+
+    # Define the order of redaction levels
+    levels_order = ['basic', 'intermediate', 'critical']
+
     # Convert PIL image to OpenCV format
     image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
@@ -62,23 +67,34 @@ def mask_image(image, detected_pii):
         image, output_type=pytesseract.Output.DICT, config=custom_config
     )
 
+    # Log detected PII and redaction level
+    print(f"Redaction Level: {redaction_level}")
+    print(f"Detected PII: {detected_pii}")
+
     # Loop through detected text and mask PII
     for i in range(len(data["text"])):
-        text = data["text"][i]
-        for pii_type, values in detected_pii.items():
-            for value in values:
-                if value in text:
-                    # Get the bounding box coordinates
-                    x, y, w, h = (
-                        data["left"][i],
-                        data["top"][i],
-                        data["width"][i],
-                        data["height"][i],
-                    )
-                    # Mask the area
-                    cv2.rectangle(
-                        image_cv, (x, y), (x + w, y + h), (0, 0, 0), -1
-                    )  # Black out the area
+        text = data["text"][i].strip()  # Remove leading/trailing whitespace
+        if text:  # Only process non-empty text
+            for pii_type, values in detected_pii.items():
+                # Check if the PII type matches the selected redaction level
+                if PII_LEVEL_MAPPING.get(pii_type, "basic") in levels_order[: levels_order.index(redaction_level) + 1]:
+                    for value in values:
+                        # Check if the detected text contains the PII value
+                        if value.strip() in text:
+                            # Log the PII being masked
+                            print(f"Masking {pii_type}: {value}")
+
+                            # Get the bounding box coordinates
+                            x, y, w, h = (
+                                data["left"][i],
+                                data["top"][i],
+                                data["width"][i],
+                                data["height"][i],
+                            )
+                            # Mask the area
+                            cv2.rectangle(
+                                image_cv, (x, y), (x + w, y + h), (0, 0, 0), -1
+                            )  # Black out the area
 
     return Image.fromarray(cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB))
 
@@ -133,12 +149,15 @@ def upload_document():
         filtered_pii = {
             pii_type: values
             for pii_type, values in all_detected_pii.items()
-            if PII_LEVEL_MAPPING.get(pii_type, "basic") in levels_order[: levels_order.index(redaction_level) + 1]
+            if levels_order.index(PII_LEVEL_MAPPING.get(pii_type, "basic")) <= levels_order.index(redaction_level)
         }
 
-        # Mask sensitive information in the images using filtered PII
+        # Log filtered PII
+        print(f"Filtered PII for level {redaction_level}: {filtered_pii}")
+
+        # Mask sensitive information in the images using filtered PII and redaction level
         for image in images:
-            masked_image = mask_image(image, filtered_pii)
+            masked_image = mask_image(image, filtered_pii, redaction_level)  # Pass redaction_level here
             redacted_images.append(masked_image)
 
         # Save redacted images as a PDF
@@ -174,11 +193,14 @@ def upload_document():
             filtered_pii = {
                 pii_type: values
                 for pii_type, values in detected_pii.items()
-                if PII_LEVEL_MAPPING.get(pii_type, "basic") in levels_order[: levels_order.index(redaction_level) + 1]
+                if levels_order.index(PII_LEVEL_MAPPING.get(pii_type, "basic")) <= levels_order.index(redaction_level)
             }
 
-            # Mask sensitive information in the image using filtered PII
-            masked_image = mask_image(image, filtered_pii)
+            # Log filtered PII
+            print(f"Filtered PII for level {redaction_level}: {filtered_pii}")
+
+            # Mask sensitive information in the image using filtered PII and redaction level
+            masked_image = mask_image(image, filtered_pii, redaction_level)  # Pass redaction_level here
             redacted_image_path = os.path.join(REDACTED_FOLDER, "redacted_image.png")
             masked_image.save(redacted_image_path)
             redacted_file_url = f"/download/{os.path.basename(redacted_image_path)}"
@@ -199,8 +221,6 @@ def upload_document():
             "redacted_file_url": redacted_file_url,  # URL to download the redacted file
         }
     )
-
-
 # Route to download redacted files
 @app.route("/download/<filename>", methods=["GET"])
 def download_file(filename):
