@@ -133,14 +133,34 @@ const Upload = () => {
   const [error, setError] = useState(null);
   const [alert, setAlert] = useState(null);
   const [redactionLevel, setRedactionLevel] = useState('basic'); // State for redaction level
+  const [isLoading, setIsLoading] = useState(false); // Loading state
+  const [isTranscribing, setIsTranscribing] = useState(false); // State for live transcription
+  const [transcription, setTranscription] = useState(''); // State for transcribed text
+  const [transcriptionPII, setTranscriptionPII] = useState([]); // State for detected PII in transcription
 
   // Connect to the WebSocket server
-  const socket = io('http://127.0.0.1:5000');
+  const socket = io('http://127.0.0.1:5000', {
+    reconnection: true, // Enable reconnection
+    reconnectionAttempts: 5, // Number of reconnection attempts
+    reconnectionDelay: 1000, // Delay between reconnection attempts
+  });
 
   useEffect(() => {
-    // Listen for real-time alerts
+    // Listen for real-time alerts from file upload
     socket.on('pii_detected', (data) => {
       setAlert(`PII Detected: ${JSON.stringify(data.detected_pii)}`);
+    });
+
+    // Listen for real-time alerts from live transcription
+    socket.on('pii_audio_detected', (data) => {
+      setTranscriptionPII((prev) => [...prev, data]); // Add detected PII to the list
+      playAlertSound(); // Play a sound when PII is detected
+    });
+
+    // Handle connection errors
+    socket.on('connect_error', (err) => {
+      console.error('WebSocket connection error:', err);
+      setAlert('Failed to connect to the server. Please refresh the page.');
     });
 
     // Clean up the socket connection
@@ -151,6 +171,7 @@ const Upload = () => {
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
+    setError(null); // Clear any previous errors
   };
 
   const handleRedactionLevelChange = (e) => {
@@ -163,6 +184,10 @@ const Upload = () => {
       return;
     }
 
+    setIsLoading(true); // Start loading
+    setError(null); // Clear previous errors
+    setResult(null); // Clear previous results
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('redaction_level', redactionLevel); // Add redaction level to form data
@@ -174,11 +199,37 @@ const Upload = () => {
         },
       });
       setResult(response.data);
-      setError(null);
+      setAlert(null); // Clear any previous alerts
     } catch (error) {
       setError("Error uploading file. Please try again.");
       console.error("Error details:", error.response ? error.response.data : error.message);
+    } finally {
+      setIsLoading(false); // Stop loading
     }
+  };
+
+  const startTranscription = async () => {
+    setIsTranscribing(true);
+    setTranscription(''); // Clear previous transcription
+    setTranscriptionPII([]); // Clear previous PII detections
+
+    try {
+      const response = await axios.get('http://127.0.0.1:5000/live_transcription');
+      console.log('Transcription started:', response.data);
+    } catch (error) {
+      setError("Error starting live transcription. Please try again.");
+      console.error("Error details:", error.response ? error.response.data : error.message);
+    }
+  };
+
+  const stopTranscription = () => {
+    setIsTranscribing(false);
+    console.log('Transcription stopped.');
+  };
+
+  const playAlertSound = () => {
+    const audio = new Audio('/path/to/alert-sound.mp3'); // Replace with the path to your alert sound
+    audio.play();
   };
 
   return (
@@ -209,12 +260,43 @@ const Upload = () => {
           </select>
         </div>
 
-        <button onClick={handleSubmit} className="upload-button">
-          Upload and Redact
+        <button onClick={handleSubmit} className="upload-button" disabled={isLoading}>
+          {isLoading ? 'Processing...' : 'Upload and Redact'}
         </button>
 
         {error && <p className="error-message">{error}</p>}
-        {alert && <p className="alert-message">{alert}</p>}
+        {alert && (
+          <div className="alert-message">
+            <strong>Alert:</strong> {alert}
+          </div>
+        )}
+      </div>
+
+      {/* Live Transcription Section */}
+      <div className="transcription-box">
+        <h2>Live Transcription</h2>
+        <button
+          onClick={isTranscribing ? stopTranscription : startTranscription}
+          className="transcription-button"
+        >
+          {isTranscribing ? 'Stop Transcription' : 'Start Transcription'}
+        </button>
+
+        {isTranscribing && (
+          <div className="transcription-results">
+            <h3>Transcribed Text</h3>
+            <pre className="text-box">{transcription}</pre>
+
+            <h3>Detected PII in Transcription</h3>
+            <ul className="pii-list">
+              {transcriptionPII.map((pii, index) => (
+                <li key={index} className="pii-item">
+                  <strong className="pii-type">{pii.type}:</strong> {pii.value}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {result && (
@@ -239,14 +321,18 @@ const Upload = () => {
             ))}
           </ul>
 
-          <h2>Download Redacted Document</h2>
-          <a
-            href={`http://127.0.0.1:5000${result.redacted_file_url}`}
-            download
-            className="download-link"
-          >
-            <button className="download-button">Download Redacted File</button>
-          </a>
+          {result.redacted_file_url && (
+            <>
+              <h2>Download Redacted Document</h2>
+              <a
+                href={`http://127.0.0.1:5000${result.redacted_file_url}`}
+                download
+                className="download-link"
+              >
+                <button className="download-button">Download Redacted File</button>
+              </a>
+            </>
+          )}
         </div>
       )}
     </div>

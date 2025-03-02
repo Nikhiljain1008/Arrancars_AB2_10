@@ -5,3 +5,7 @@ opencv-python
 spacy
 pandas
 sqlalchemy
+SpeechRecognition
+pydub
+presidio-analyzer
+pyaudio

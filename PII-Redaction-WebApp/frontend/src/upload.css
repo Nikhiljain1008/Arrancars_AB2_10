@@ -1,4 +1,4 @@
-/* General Styles */
+General Styles
 body {
     font-family: Arial, sans-serif;
     background-color: #f4f4f9;
@@ -136,4 +136,43 @@ body {
   
   .download-button:hover {
     background-color: #138496;
+  }
+  .live-transcript {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+  }
+  
+  .live-transcript h3 {
+    margin-bottom: 10px;
+  }
+  
+  .upload-button.listening {
+    background-color: #dc3545; /* Red color when listening */
+  }
+  .transcription-box {
+    margin-top: 20px;
+    padding: 20px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    background-color: #f9f9f9;
+  }
+  
+  .transcription-button {
+    padding: 10px 20px;
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  
+  .transcription-button:hover {
+    background-color: #138496;
+  }
+  
+  .transcription-results {
+    margin-top: 20px;
   }
