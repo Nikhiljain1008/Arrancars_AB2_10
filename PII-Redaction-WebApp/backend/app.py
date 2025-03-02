@@ -93,6 +93,12 @@ def upload_document():
     if file.filename == "":
         return jsonify({"error": "No file selected"}), 400
 
+    # Get the selected redaction level from the form data
+    redaction_level = request.form.get("redaction_level", "basic").lower()
+    levels_order = ["basic", "intermediate", "critical"]
+    if redaction_level not in levels_order:
+        redaction_level = "basic"  # Default to basic if invalid level is provided
+
     # Read the file into memory
     file_bytes = file.read()
 
@@ -101,22 +107,38 @@ def upload_document():
         # Convert PDF to images
         images = convert_from_bytes(file_bytes, poppler_path=POPPLER_PATH)
         text = ""
+        all_detected_pii = {}  # Accumulate detected PII across all pages
         redacted_images = []
+
         for image in images:
             # Preprocess the image
             processed_image = preprocess_image(image)
             # Extract text using OCR
-            custom_config = r"--oem 3 --psm 6"  # OEM 3 = LSTM, PSM 6 = Assume a single uniform block of text
-            extracted_text = pytesseract.image_to_string(
-                processed_image, config=custom_config
-            )
+            custom_config = r"--oem 3 --psm 6"
+            extracted_text = pytesseract.image_to_string(processed_image, config=custom_config)
             text += extracted_text + "\n"
 
             # Detect PII in the extracted text
             detected_pii = detect_pii(extracted_text)
 
-            # Mask sensitive information in the image
-            masked_image = mask_image(image, detected_pii)
+            # Accumulate detected PII across all pages
+            for pii_type, values in detected_pii.items():
+                if pii_type in all_detected_pii:
+                    all_detected_pii[pii_type].extend(v for v in values if v not in all_detected_pii[pii_type])
+                else:
+                    all_detected_pii[pii_type] = values.copy()
+
+        # Filter detected PII based on the selected redaction level
+        from utils.pii_detector import PII_LEVEL_MAPPING
+        filtered_pii = {
+            pii_type: values
+            for pii_type, values in all_detected_pii.items()
+            if PII_LEVEL_MAPPING.get(pii_type, "basic") in levels_order[: levels_order.index(redaction_level) + 1]
+        }
+
+        # Mask sensitive information in the images using filtered PII
+        for image in images:
+            masked_image = mask_image(image, filtered_pii)
             redacted_images.append(masked_image)
 
         # Save redacted images as a PDF
@@ -132,6 +154,7 @@ def upload_document():
         redacted_pdf_path = os.path.join(REDACTED_FOLDER, "redacted_document.pdf")
         pdf.output(redacted_pdf_path)
         redacted_file_url = f"/download/{os.path.basename(redacted_pdf_path)}"
+
     else:
         # Handle image files (JPEG, PNG, etc.)
         try:
@@ -140,33 +163,39 @@ def upload_document():
             processed_image = preprocess_image(image)
             # Extract text using OCR
             custom_config = r"--oem 3 --psm 6"
-            extracted_text = pytesseract.image_to_string(
-                processed_image, config=custom_config
-            )
+            extracted_text = pytesseract.image_to_string(processed_image, config=custom_config)
             text = extracted_text
 
             # Detect PII in the extracted text
             detected_pii = detect_pii(extracted_text)
 
-            # Mask sensitive information in the image
-            masked_image = mask_image(image, detected_pii)
+            # Filter detected PII based on the selected redaction level
+            from utils.pii_detector import PII_LEVEL_MAPPING
+            filtered_pii = {
+                pii_type: values
+                for pii_type, values in detected_pii.items()
+                if PII_LEVEL_MAPPING.get(pii_type, "basic") in levels_order[: levels_order.index(redaction_level) + 1]
+            }
+
+            # Mask sensitive information in the image using filtered PII
+            masked_image = mask_image(image, filtered_pii)
             redacted_image_path = os.path.join(REDACTED_FOLDER, "redacted_image.png")
             masked_image.save(redacted_image_path)
             redacted_file_url = f"/download/{os.path.basename(redacted_image_path)}"
         except Exception as e:
             return jsonify({"error": f"Cannot process file: {str(e)}"}), 400
 
-    # Redact sensitive information in the text
-    redacted_text = redact_text(text, detected_pii)
+    # Redact sensitive information in the text using filtered PII
+    redacted_text = redact_text(text, filtered_pii)
 
-    # Emit a real-time alert to the client
-    socketio.emit("pii_detected", {"detected_pii": detected_pii})
+    # Emit a real-time alert to the client with filtered PII
+    socketio.emit("pii_detected", {"detected_pii": filtered_pii})
 
     return jsonify(
         {
             "text": text,
             "redacted_text": redacted_text,
-            "detected_pii": detected_pii,
+            "detected_pii": filtered_pii,
             "redacted_file_url": redacted_file_url,  # URL to download the redacted file
         }
     )

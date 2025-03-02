@@ -7,6 +7,7 @@ const Upload = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [alert, setAlert] = useState(null);
+  const [redactionLevel, setRedactionLevel] = useState('basic'); // State for redaction level
 
   // Connect to the WebSocket server
   const socket = io('http://127.0.0.1:5000');
@@ -27,6 +28,10 @@ const Upload = () => {
     setFile(e.target.files[0]);
   };
 
+  const handleRedactionLevelChange = (e) => {
+    setRedactionLevel(e.target.value); // Update redaction level state
+  };
+
   const handleSubmit = async () => {
     if (!file) {
       setError("Please select a file.");
@@ -35,6 +40,7 @@ const Upload = () => {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('redaction_level', redactionLevel); // Add redaction level to form data
 
     try {
       const response = await axios.post('http://127.0.0.1:5000/upload', formData, {
@@ -54,6 +60,22 @@ const Upload = () => {
     <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
       <h1>Upload Document</h1>
       <input type="file" onChange={handleFileChange} />
+      
+      {/* Redaction Level Dropdown */}
+      <div style={{ marginTop: '10px' }}>
+        <label htmlFor="redactionLevel">Redaction Level: </label>
+        <select
+          id="redactionLevel"
+          value={redactionLevel}
+          onChange={handleRedactionLevelChange}
+          style={{ padding: '5px', borderRadius: '5px' }}
+        >
+          <option value="basic">Basic</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+
       <button onClick={handleSubmit} style={{ marginTop: '10px', padding: '10px' }}>
         Upload
       </button>
