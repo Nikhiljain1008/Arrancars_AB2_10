@@ -53,8 +53,32 @@ CONTEXTUAL_KEYWORDS = {
     "vehicle_registration": ["vehicle registration", "rc no"],
     "dob": ["dob", "date of birth", "birth date"],
 }
-
-
+PII_LEVEL_MAPPING = {
+    'email': 'basic',
+    'phone': 'basic',
+    'pincode': 'basic',
+    'dob': 'basic',
+    'DATE': 'basic',  # SpaCy entity for dates
+    'aadhaar': 'intermediate',
+    'pan': 'intermediate',
+    'voter_id': 'intermediate',
+    'PERSON': 'intermediate',  # SpaCy entity for names
+    'GPE': 'intermediate',     # SpaCy entity for locations
+    'driving_license': 'critical',
+    'passport': 'critical',
+    'credit_card': 'critical',
+    'debit_card': 'critical',
+    'bank_account': 'critical',
+    'ifsc': 'critical',
+    'upi_id': 'critical',
+    'gst': 'critical',
+    'cin': 'critical',
+    'esic': 'critical',
+    'pf': 'critical',
+    'social_security': 'critical',
+    'tin': 'critical',
+    'vehicle_registration': 'critical',
+}
 def detect_with_context(text, pii_type):
     """
     Detect PII using contextual keywords.
